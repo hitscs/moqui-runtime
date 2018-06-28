@@ -13,13 +13,13 @@ along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-1.6.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-2.1.xsd"
         default-menu-title="Service Run" default-menu-index="2">
 
     <parameter name="serviceName"/>
     <parameter name="doingRun"/>
 
-    <transition name="run">
+    <transition name="run" begin-transaction="false">
         <actions>
             <script>
                 org.moqui.context.ExecutionContext ec = context.ec
@@ -62,9 +62,9 @@ along with this software (see the LICENSE.md file). If not, see
         <section name="ServiceParametersSection" condition="serviceName"><widgets>
             <label text="Run Service: ${serviceName}" type="h3"/>
             <form-single name="ServiceParameters" transition="run" dynamic="true">
-                <auto-fields-service service-name="${serviceName}" field-type="edit"/>
                 <field name="serviceName"><default-field><hidden/></default-field></field>
                 <field name="doingRun"><default-field><hidden default-value="Y"/></default-field></field>
+                <auto-fields-service service-name="${serviceName}" include="in" field-type="edit"/>
                 <field name="submitButton"><default-field title="Run Service"><submit/></default-field></field>
 
                 <field name="cronString"><default-field tooltip="Enter a cron string to schedule instead of running immediately">

@@ -13,29 +13,35 @@ along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-1.6.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-2.1.xsd"
         default-menu-title="Entity Detail">
 
-    <parameter name="entityName" required="true"/>
+    <parameter name="selectedEntity" required="true"/>
     <parameter name="refresh" required="false"/>
 
     <transition name="list"><default-response url="../EntityList"/></transition>
     <transition name="find"><default-response url="../EntityDataFind"/></transition>
     <transition name="checkTable">
-        <actions><script>ec.entity.entityDbMeta.forceCheckTableRuntime(ec.entity.getEntityDefinition(entityName))</script></actions>
+        <actions><script>ec.entity.entityDbMeta.forceCheckTableRuntime(ec.entity.getEntityDefinition(selectedEntity))</script></actions>
         <default-response url="."/>
     </transition>
 
     <actions>
-        <set field="entityDefinition" from="ec.entity.getEntityDefinition(entityName)"/>
+        <set field="entityDefinition" from="ec.entity.getEntityDefinition(selectedEntity)"/>
+        <set field="entityInfo" from="entityDefinition.entityInfo"/>
         <set field="entityNode" from="entityDefinition.getEntityNode()"/>
-        <set field="fieldNodes" from="entityDefinition.getFieldNodes(true, true, false)"/>
-        <entity-find entity-name="moqui.entity.UserField" list="userFieldList">
-            <econdition field-name="entityName" from="entityDefinition.fullEntityName"/>
-            <order-by field-name="fieldName"/>
-        </entity-find>
+        <set field="fieldInfos" from="entityInfo.allFieldInfoArray"/>
         <set field="relationshipInfoList" from="entityDefinition.getRelationshipsInfo(false)"/>
         <set field="dependents" from="entityDefinition.getDependentsTree()"/>
+        <script><![CDATA[
+            eecas = ec.entity.eecaRulesByEntityName.get(entityDefinition.fullEntityName)
+            secas = []
+            for (verb in org.moqui.impl.service.runner.EntityAutoServiceRunner.verbSet) {
+                serviceName = verb + entityDefinition.fullEntityName
+                rules = ec.service.secaRulesByServiceName.get(serviceName)
+                if (rules) secas.addAll(rules)
+            }
+        ]]></script>
     </actions>
     <widgets>
         <container>
@@ -45,36 +51,29 @@ along with this software (see the LICENSE.md file). If not, see
         </container>
         <container><label text="Entity Detail for '${entityDefinition.fullEntityName}'" type="h3"/></container>
         <container-row>
-            <row-col md="3" lg="3"><label text="View Entity? ${entityDefinition.isViewEntity()}" type="strong"/></row-col>
-            <row-col md="3" lg="3"><label text="Short Alias: ${entityDefinition.getShortAlias() ?: 'N/A'}" type="strong"/></row-col>
-            <row-col md="3" lg="3"><label text="Table Name: ${entityDefinition.getFullTableName() ?: 'N/A'}" type="strong"/></row-col>
-            <row-col md="3" lg="3"><label text="Entity Group: ${entityNode.'@group-name' ?: '(default)'}" type="strong"/></row-col>
+            <row-col md="3" lg="3"><label text="View Entity? ${entityDefinition.isViewEntity}" type="strong"/></row-col>
+            <row-col md="3" lg="3"><label text="Short Alias: ${entityInfo.shortAlias ?: 'N/A'}" type="strong"/></row-col>
+            <row-col md="3" lg="3"><label text="Table Name: ${entityInfo.fullTableName ?: 'N/A'}" type="strong"/></row-col>
+            <row-col md="3" lg="3"><label text="Entity Group: ${entityNode.attribute('group-name') ?: '(default)'}" type="strong"/></row-col>
         </container-row>
         <container-row>
-            <row-col md="3" lg="3"><label text="Needs Encrypt? ${entityDefinition.needsEncrypt()}" type="strong"/></row-col>
-            <row-col md="3" lg="3"><label text="Create Only? ${entityDefinition.createOnly()}" type="strong"/></row-col>
+            <row-col md="3" lg="3"><label text="Needs Encrypt? ${entityInfo.needsEncrypt}" type="strong"/></row-col>
+            <row-col md="3" lg="3"><label text="Create Only? ${entityInfo.createOnly}" type="strong"/></row-col>
         </container-row>
         <container-row>
-            <row-col md="3" lg="3"><label text="Needs Audit Log? ${entityDefinition.needsAuditLog()}" type="strong"/></row-col>
-            <row-col md="3" lg="3"><label text="Entity Audit Default: ${entityNode.'@enable-audit-log' ?: 'false'}" type="strong"/></row-col>
+            <row-col md="3" lg="3"><label text="Needs Audit Log? ${entityInfo.needsAuditLog}" type="strong"/></row-col>
+            <row-col md="3" lg="3"><label text="Entity Audit Default: ${entityNode.attribute('enable-audit-log') ?: 'false'}" type="strong"/></row-col>
         </container-row>
 
-        <form-list name="FieldList" list="fieldNodes" list-entry="node">
-            <field name="fieldName" entry-name="node.'@name'"><default-field><display/></default-field></field>
-            <field name="type" entry-name="node.'@type'"><default-field><display/></default-field></field>
-            <field name="column" entry-name="entityDefinition.getColumnName(node.'@name', true)"><default-field><display/></default-field></field>
-            <field name="isPk" entry-name="node.'@is-pk'"><default-field title="Is PK"><display/></default-field></field>
-            <field name="audit" entry-name="node.'@enable-audit-log'"><default-field><display/></default-field></field>
-            <field name="encrypt" entry-name="node.'@encrypt'"><default-field><display/></default-field></field>
-            <field name="localize" entry-name="node.'@enable-localization'"><default-field><display/></default-field></field>
-            <field name="default" entry-name="node.'@default'"><default-field><display/></default-field></field>
-        </form-list>
-        <form-list name="UserFieldList" list="userFieldList">
-            <field name="fieldName"><default-field title="User Field"><display/></default-field></field>
-            <field name="fieldType"><default-field><display/></default-field></field>
-            <field name="userGroupId"><default-field><display/></default-field></field>
-            <field name="enableAuditLog"><default-field title="Audit"><display/></default-field></field>
-            <field name="enableLocalization"><default-field title="Localize"><display/></default-field></field>
+        <form-list name="FieldList" list="fieldInfos" list-entry="fieldInfo">
+            <field name="fieldName" from="fieldInfo.name"><default-field><display/></default-field></field>
+            <field name="type" from="fieldInfo.type"><default-field><display/></default-field></field>
+            <field name="column" from="entityDefinition.getColumnName(fieldInfo.name)"><default-field><display/></default-field></field>
+            <field name="isPk" from="fieldInfo.isPk"><default-field title="Is PK"><display/></default-field></field>
+            <field name="audit" from="fieldInfo.enableAuditLog"><default-field><display/></default-field></field>
+            <field name="encrypt" from="fieldInfo.encrypt"><default-field><display/></default-field></field>
+            <field name="localize" from="fieldInfo.enableLocalization"><default-field><display/></default-field></field>
+            <field name="default" from="fieldInfo.defaultStr"><default-field><display/></default-field></field>
         </form-list>
         <form-list name="RelatedEntities" list="relationshipInfoList" list-entry="relInfo">
             <field name="prettyName"><default-field><display/></default-field></field>
@@ -85,17 +84,35 @@ along with this software (see the LICENSE.md file). If not, see
             <field name="keyMap"><default-field><display/></default-field></field>
             <field name="link">
                 <default-field title="">
-                    <link text="Detail" url="." link-type="anchor"><parameter name="entityName" from="relInfo.relatedEntityName"/></link>
-                    <link text="Find" url="find" link-type="anchor"><parameter name="entityName" from="relInfo.relatedEntityName"/></link>
+                    <link text="Detail" url="." link-type="anchor"><parameter name="selectedEntity" from="relInfo.relatedEntityName"/></link>
+                    <link text="Find" url="find" link-type="anchor"><parameter name="selectedEntity" from="relInfo.relatedEntityName"/></link>
                 </default-field>
             </field>
         </form-list>
+
+        <label text="Eecas and related AutoService Secas" type="h4" condition="eecas || secas"/>
+        <section-iterate name="Eecas" list="eecas" entry="eeca">
+            <widgets>
+                <container type="pre" style="line-numbers"><label text="${eeca.eecaNode.toString()}"
+                                                                  type="code" style="language-markup" encode="true"/></container>
+            </widgets>
+        </section-iterate>
+        <section-iterate name="Secas" list="secas" entry="seca">
+            <widgets>
+                <container type="pre" style="line-numbers"><label text="${seca.toString()}"
+                                                                  type="code" style="language-markup" encode="true"/></container>
+            </widgets>
+        </section-iterate>
+        <render-mode><text type="html,vuet"><![CDATA[
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.6.0/themes/prism-twilight.min.css" type="text/css"/>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.6.0/prism.min.js" type="text/javascript"></script>
+        ]]></text></render-mode>
 
         <label text="Dependents" type="h4"/>
         <label text="${dependents.toString()}" type="pre" encode="true"/>
         <label text="All Descendants:" type="h5"/>
         <section-iterate name="DescendantList" list="dependents.allDescendants" entry="descendantName">
-            <widgets><container><link url="." text="${descendantName}" parameter-map="[entityName:descendantName]" link-type="anchor"/></container></widgets>
+            <widgets><container><link url="." text="${descendantName}" parameter-map="[selectedEntity:descendantName]" link-type="anchor"/></container></widgets>
         </section-iterate>
     </widgets>
 </screen>

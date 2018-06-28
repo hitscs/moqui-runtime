@@ -12,7 +12,7 @@ You should have received a copy of the CC0 Public Domain Dedication
 along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
-<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-1.6.xsd"
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-2.1.xsd"
         default-menu-index="1">
 
     <parameter name="entitySyncId" required="true"/>
@@ -65,7 +65,6 @@ along with this software (see the LICENSE.md file). If not, see
                     <field name="targetServerUrl"><default-field><text-line size="50"/></default-field></field>
                     <field name="targetUsername"><default-field title="Username"><text-line size="30"/></default-field></field>
                     <field name="targetPassword"><default-field title="Password"><text-line size="20"/></default-field></field>
-                    <field name="targetTenantId"><default-field title="Tenant ID"><text-line size="20"/></default-field></field>
 
                     <field name="forPull"><default-field tooltip="Y for pull from remote, N for push to remote">
                         <drop-down><option key="N"/><option key="Y"/></drop-down>
@@ -82,7 +81,7 @@ along with this software (see the LICENSE.md file). If not, see
                             <form-single name="CreateEntitySyncArtifact" transition="createEntitySyncArtifact">
                                 <field name="entitySyncId"><default-field><hidden/></default-field></field>
                                 <field name="artifactGroupId"><default-field title="Artifact Group">
-                                    <drop-down style="chosen-wider">
+                                    <drop-down>
                                         <entity-options key="${artifactGroupId}" text="${description} [${artifactGroupId}]">
                                             <entity-find entity-name="moqui.security.ArtifactGroup">
                                                 <order-by field-name="description"/></entity-find>
@@ -90,7 +89,7 @@ along with this software (see the LICENSE.md file). If not, see
                                     </drop-down>
                                 </default-field></field>
                                 <field name="applEnumId"><default-field title="Appl Type">
-                                    <drop-down style="chosen-wide">
+                                    <drop-down>
                                         <entity-options key="${enumId}" text="${description}">
                                             <entity-find entity-name="moqui.basic.Enumeration">
                                                 <econdition field-name="enumTypeId" value="EntitySyncArtifactAppl"/>

@@ -20,6 +20,7 @@ along with this software (see the LICENSE.md file). If not, see
 </#macro>
 
 <#macro @element><#-- do nothing for unknown elements --></#macro>
+<#macro screen><#recurse></#macro>
 <#macro widgets><#recurse></#macro>
 <#macro "fail-widgets"><#recurse></#macro>
 
@@ -34,19 +35,21 @@ along with this software (see the LICENSE.md file). If not, see
 
 <#-- ================ Containers ================ -->
 <#macro container><#recurse></#macro>
-
-<#macro "container-panel">
-    <#if .node["panel-header"]?has_content><#recurse .node["panel-header"][0]></#if>
-    <#if .node["panel-left"]?has_content><#recurse .node["panel-left"][0]></#if>
-    <#recurse .node["panel-center"][0]>
-    <#if .node["panel-right"]?has_content><#recurse .node["panel-right"][0]></#if>
-    <#if .node["panel-footer"]?has_content><#recurse .node["panel-footer"][0]></#if>
+<#macro "container-box">
+    <#t><#if .node["box-body"]?has_content><#recurse .node["box-body"][0]></#if>
+    <#t><#if .node["box-body-nopad"]?has_content><#recurse .node["box-body-nopad"][0]></#if>
 </#macro>
-
+<#macro "container-panel">
+    <#t><#if .node["panel-header"]?has_content><#recurse .node["panel-header"][0]></#if>
+    <#t><#if .node["panel-left"]?has_content><#recurse .node["panel-left"][0]></#if>
+    <#t><#recurse .node["panel-center"][0]>
+    <#t><#if .node["panel-right"]?has_content><#recurse .node["panel-right"][0]></#if>
+    <#t><#if .node["panel-footer"]?has_content><#recurse .node["panel-footer"][0]></#if>
+</#macro>
 <#macro "container-dialog"><#recurse></#macro>
 
 <#-- ==================== Includes ==================== -->
-<#macro "include-screen">${sri.renderIncludeScreen(.node["@location"], .node["@share-scope"]?if_exists)}</#macro>
+<#macro "include-screen">${sri.renderIncludeScreen(.node["@location"], .node["@share-scope"]!)}</#macro>
 
 <#-- ============== Tree ============== -->
 <#-- TABLED, not to be part of 1.0:
@@ -60,26 +63,22 @@ along with this software (see the LICENSE.md file). If not, see
 
 <#-- ============== Render Mode Elements ============== -->
 <#macro "render-mode">
-<#if .node["text"]?has_content>
-    <#list .node["text"] as textNode>
-        <#if textNode["@type"]?has_content && textNode["@type"] == sri.getRenderMode()><#assign textToUse = textNode/></#if>
-    </#list>
-    <#if !textToUse?has_content>
-        <#list .node["text"] as textNode><#if !textNode["@type"]?has_content || textNode["@type"] == "any"><#assign textToUse = textNode/></#if></#list>
-    </#if>
-    <#if textToUse?exists>
-        <#if textToUse["@location"]?has_content>
-    <#-- NOTE: this still won't encode templates that are rendered to the writer -->
-    <#if .node["@encode"]!"false" == "true">${sri.renderText(textToUse["@location"], textToUse["@template"]?if_exists)?html}<#else/>${sri.renderText(textToUse["@location"], textToUse["@template"]?if_exists)}</#if>
+<#t><#if .node["text"]?has_content>
+    <#list .node["text"] as textNode><#if !textNode["@type"]?has_content || textNode["@type"] == "any"><#local textToUse = textNode/></#if></#list>
+    <#list .node["text"] as textNode><#if textNode["@type"]?has_content && textNode["@type"]?split(",")?seq_contains(sri.getRenderMode())><#local textToUse = textNode></#if></#list>
+    <#t><#if textToUse??>
+        <#t><#if textToUse["@location"]?has_content>
+            <#-- NOTE: this still won't encode templates that are rendered to the writer -->
+            <#t><#if .node["@encode"]! == "true">${sri.renderText(textToUse["@location"], textToUse["@template"]!)?html}<#else>${sri.renderText(textToUse["@location"], textToUse["@template"]!)}</#if>
         </#if>
         <#assign inlineTemplateSource = textToUse?string/>
-        <#if inlineTemplateSource?has_content>
-          <#if !textToUse["@template"]?has_content || textToUse["@template"] == "true">
-            <#assign inlineTemplate = [inlineTemplateSource, sri.getActiveScreenDef().location + ".render_mode.text"]?interpret>
-            <@inlineTemplate/>
-          <#else/>
-            ${inlineTemplateSource}
-          </#if>
+        <#t><#if inlineTemplateSource?has_content>
+            <#t><#if !textToUse["@template"]?has_content || textToUse["@template"] == "true">
+                <#assign inlineTemplate = [inlineTemplateSource, sri.getActiveScreenDef().location + ".render_mode.text"]?interpret>
+                <#t><@inlineTemplate/>
+            <#else>
+                <#t>${inlineTemplateSource}
+            </#if><#t>
         </#if>
     </#if>
 </#if>
@@ -88,7 +87,22 @@ along with this software (see the LICENSE.md file). If not, see
 <#macro text><#-- do nothing, is used only through "render-mode" --></#macro>
 
 <#-- ================== Standalone Fields ==================== -->
-<#macro link><#if .node?parent?node_name?contains("-field")>${ec.resource.expand(.node["@text"], "")}</#if></#macro>
+<#macro link><#if .node?parent?node_name?ends_with("-field") && (.node["@link-type"]! == "anchor" || .node["@link-type"]! == "hidden-form-link")>
+    <#assign linkNode = .node>
+    <#if linkNode["@condition"]?has_content><#assign conditionResult = ec.getResource().condition(linkNode["@condition"], "")><#else><#assign conditionResult = true></#if>
+    <#if conditionResult>
+        <#if linkNode["@entity-name"]?has_content>
+            <#assign linkText = ""><#assign linkText = sri.getFieldEntityValue(linkNode)>
+        <#else>
+            <#assign textMap = "">
+            <#if linkNode["@text-map"]?has_content><#assign textMap = ec.getResource().expression(linkNode["@text-map"], "")!></#if>
+            <#if textMap?has_content><#assign linkText = ec.getResource().expand(linkNode["@text"], "", textMap)>
+                <#else><#assign linkText = ec.getResource().expand(linkNode["@text"]!"", "")></#if>
+        </#if>
+        <#if linkText == "null"><#assign linkText = ""></#if>
+        <#t><@csvValue linkText/>
+    </#if>
+</#if></#macro>
 
 <#macro image><#-- do nothing for image, most likely part of screen and is funny in csv file: <@csvValue .node["@alt"]!"image"/> --></#macro>
 <#macro label><#-- do nothing for label, most likely part of screen and is funny in csv file: <#assign labelValue = ec.resource.expand(.node["@text"], "")><@csvValue labelValue/> --></#macro>
@@ -104,65 +118,33 @@ on the same screen to increase reusability of those screens -->
 
 <#macro "form-list">
     <#-- Use the formNode assembled based on other settings instead of the straight one from the file: -->
-    <#assign formNode = sri.getFtlFormNode(.node["@name"])>
+    <#assign formInstance = sri.getFormInstance(.node["@name"])>
+    <#assign formListInfo = formInstance.makeFormListRenderInfo()>
+    <#assign formNode = formListInfo.getFormNode()>
+    <#assign formListColumnList = formListInfo.getAllColInfo()>
+    <#assign listObject = formListInfo.getListObject(false)!>
     <#assign listName = formNode["@list"]>
-    <#assign listObject = ec.resource.expression(listName, "")?if_exists>
-    <#assign formListColumnList = formNode["form-list-column"]?if_exists>
-    <#if formListColumnList?exists && (formListColumnList?size > 0)>
+    <#assign hasPrevColumn = false>
+    <#list formListColumnList as columnFieldList>
+        <#list columnFieldList as fieldNode>
+            <#t><@formListHeaderField fieldNode/>
+        </#list>
+    </#list>
+
+    <#list listObject as listEntry>
+        <#assign listEntryIndex = listEntry_index>
+        <#-- NOTE: the form-list.@list-entry attribute is handled in the ScreenForm class through this call: -->
+        ${sri.startFormListRow(formListInfo, listEntry, listEntry_index, listEntry_has_next)}<#t>
         <#assign hasPrevColumn = false>
-        <#list formListColumnList as fieldListColumn>
-            <#list fieldListColumn["field-ref"] as fieldRef>
-                <#assign fieldRef = fieldRef["@name"]>
-                <#assign fieldNode = "invalid">
-                <#list formNode["field"] as fn><#if fn["@name"] == fieldRef><#assign fieldNode = fn><#break></#if></#list>
-                <#if !(fieldNode["@hide"]?if_exists == "true" ||
-                        ((!fieldNode["@hide"]?has_content) && fieldNode?children?size == 1 &&
-                        (fieldNode?children[0]["hidden"]?has_content || fieldNode?children[0]["ignored"]?has_content)))>
-                    <#t><@formListHeaderField fieldNode/>
-                </#if>
-            </#list>
-        </#list>
-
-        <#list listObject as listEntry>
-            <#assign listEntryIndex = listEntry_index>
-            <#-- NOTE: the form-list.@list-entry attribute is handled in the ScreenForm class through this call: -->
-            ${sri.startFormListRow(formNode["@name"], listEntry, listEntry_index, listEntry_has_next)}<#t>
-            <#assign hasPrevColumn = false>
-            <#list formNode["form-list-column"] as fieldListColumn>
-                <#list fieldListColumn["field-ref"] as fieldRef>
-                    <#assign fieldRef = fieldRef["@name"]>
-                    <#assign fieldNode = "invalid">
-                    <#list formNode["field"] as fn><#if fn["@name"] == fieldRef><#assign fieldNode = fn><#break></#if></#list>
-                    <#t><@formListSubField fieldNode/>
-                </#list>
-            </#list>
-
-            ${sri.endFormListRow()}<#t>
-        </#list>
-        ${sri.safeCloseList(listObject)}<#t><#-- if listObject is an EntityListIterator, close it -->
-    <#else>
-        <#assign hasPrevColumn = false>
-        <#list formNode["field"] as fieldNode>
-            <#if !(fieldNode["@hide"]?if_exists == "true" ||
-                    ((!fieldNode["@hide"]?has_content) && fieldNode?children?size == 1 &&
-                    (fieldNode?children[0]["hidden"]?has_content || fieldNode?children[0]["ignored"]?has_content)))>
-                <#t><@formListHeaderField fieldNode/>
-            </#if>
-        </#list>
-
-        <#list listObject as listEntry>
-            <#assign listEntryIndex = listEntry_index>
-            <#-- NOTE: the form-list.@list-entry attribute is handled in the ScreenForm class through this call: -->
-            ${sri.startFormListRow(formNode["@name"], listEntry, listEntry_index, listEntry_has_next)}<#t>
-            <#assign hasPrevColumn = false>
-            <#list formNode["field"] as fieldNode>
+        <#list formListColumnList as columnFieldList>
+            <#list columnFieldList as fieldNode>
                 <#t><@formListSubField fieldNode/>
             </#list>
-
-            ${sri.endFormListRow()}<#t>
         </#list>
-        ${sri.safeCloseList(listObject)}<#t><#-- if listObject is an EntityListIterator, close it -->
-    </#if>
+
+        ${sri.endFormListRow()}<#t>
+    </#list>
+    ${sri.safeCloseList(listObject)}<#t><#-- if listObject is an EntityListIterator, close it -->
 </#macro>
 <#macro formListHeaderField fieldNode>
     <#if fieldNode["header-field"]?has_content>
@@ -173,7 +155,6 @@ on the same screen to increase reusability of those screens -->
         <#-- this only makes sense for fields with a single conditional -->
         <#assign fieldSubNode = fieldNode["conditional-field"][0]>
     </#if>
-    <#if fieldSubNode["ignored"]?has_content || fieldSubNode["hidden"]?has_content || fieldSubNode["submit"]?has_content><#return/></#if>
     <#t><#if hasPrevColumn>,<#else><#assign hasPrevColumn = true></#if><@fieldTitle fieldSubNode/>
 </#macro>
 <#macro formListSubField fieldNode>
@@ -190,12 +171,20 @@ on the same screen to increase reusability of those screens -->
 </#macro>
 <#macro formListWidget fieldSubNode>
     <#if fieldSubNode["ignored"]?has_content || fieldSubNode["hidden"]?has_content || fieldSubNode["submit"]?has_content><#return/></#if>
-    <#if fieldSubNode?parent["@hide"]?if_exists == "true"><#return></#if>
+    <#if fieldSubNode?parent["@hide"]! == "true"><#return></#if>
     <#t><#if hasPrevColumn>,<#else><#assign hasPrevColumn = true></#if><#recurse fieldSubNode>
 </#macro>
 <#macro "row-actions"><#-- do nothing, these are run by the SRI --></#macro>
 
-<#macro fieldTitle fieldSubNode><#assign titleValue><#if fieldSubNode["@title"]?has_content>${fieldSubNode["@title"]}<#else/><#list fieldSubNode?parent["@name"]?split("(?=[A-Z])", "r") as nameWord>${nameWord?cap_first?replace("Id", "ID")}<#if nameWord_has_next> </#if></#list></#if></#assign>${ec.l10n.localize(titleValue)}</#macro>
+<#macro fieldTitle fieldSubNode><#t>
+    <#t><#if (fieldSubNode?node_name == 'header-field')>
+        <#local fieldNode = fieldSubNode?parent>
+        <#local headerFieldNode = fieldNode["header-field"][0]!>
+        <#local defaultFieldNode = fieldNode["default-field"][0]!>
+        <#t><#if headerFieldNode["@title"]?has_content><#local fieldSubNode = headerFieldNode><#elseif defaultFieldNode["@title"]?has_content><#local fieldSubNode = defaultFieldNode></#if>
+    </#if>
+    <#t><#assign titleValue><#if fieldSubNode["@title"]?has_content>${ec.getResource().expand(fieldSubNode["@title"], "")}<#else><#list fieldSubNode?parent["@name"]?split("(?=[A-Z])", "r") as nameWord>${nameWord?cap_first?replace("Id", "ID")}<#if nameWord_has_next> </#if></#list></#if></#assign>${ec.getL10n().localize(titleValue)}
+</#macro>
 
 <#macro "field"><#-- shouldn't be called directly, but just in case --><#recurse/></#macro>
 <#macro "conditional-field"><#-- shouldn't be called directly, but just in case --><#recurse/></#macro>
@@ -204,31 +193,38 @@ on the same screen to increase reusability of those screens -->
 <#-- ================== Form Field Widgets ==================== -->
 
 <#macro "check">
-    <#assign options = {"":""}/><#assign options = sri.getFieldOptions(.node)>
-    <#assign currentValue = sri.getFieldValue(.node?parent?parent, "")>
-    <#if !currentValue?has_content><#assign currentValue = .node["@no-current-selected-key"]?if_exists/></#if>
-    <#t><#if currentValue?has_content>${options.get(currentValue)?default(currentValue)}</#if>
+    <#assign options = sri.getFieldOptions(.node)>
+    <#assign currentValue = sri.getFieldValueString(.node)>
+    <#if !currentValue?has_content><#assign currentValue = ec.getResource().expandNoL10n(.node["@no-current-selected-key"]!, "")/></#if>
+    <#t><@csvValue (options.get(currentValue))!(currentValue)/>
 </#macro>
 
 <#macro "date-find"></#macro>
 <#macro "date-time">
-    <#assign fieldValue = sri.getFieldValue(.node?parent?parent, .node["@default-value"]!"")>
+    <#assign fieldValue = sri.getFieldValue(.node?parent?parent, .node["@default-value"]!"")!>
     <#if .node["@format"]?has_content><#assign fieldValue = ec.l10n.format(fieldValue, .node["@format"])></#if>
-    <#if .node["@type"]?if_exists == "time"><#assign size=9/><#assign maxlength=12/><#elseif .node["@type"]?if_exists == "date"><#assign size=10/><#assign maxlength=10/><#else><#assign size=23/><#assign maxlength=23/></#if>
+    <#if .node["@type"]! == "time"><#assign size=9/><#assign maxlength=12/><#elseif .node["@type"]! == "date"><#assign size=10/><#assign maxlength=10/><#else><#assign size=23/><#assign maxlength=23/></#if>
     <#t><@csvValue fieldValue/>
 </#macro>
 
 <#macro "display">
     <#assign fieldValue = ""/>
+    <#assign dispFieldNode = .node?parent?parent>
     <#if .node["@text"]?has_content>
-        <#assign fieldValue = ec.resource.expand(.node["@text"], "")>
+        <#assign textMap = "">
+        <#if .node["@text-map"]?has_content><#assign textMap = ec.getResource().expression(.node["@text-map"], "")!></#if>
+        <#if textMap?has_content>
+            <#assign fieldValue = ec.getResource().expand(.node["@text"], "", textMap)>
+        <#else>
+            <#assign fieldValue = ec.getResource().expand(.node["@text"], "")>
+        </#if>
         <#if .node["@currency-unit-field"]?has_content>
-            <#assign fieldValue = ec.l10n.formatCurrency(fieldValue, ec.resource.expression(.node["@currency-unit-field"], ""), 2)>
+            <#assign fieldValue = ec.getL10n().formatCurrency(fieldValue, ec.getResource().expression(.node["@currency-unit-field"], ""))>
         </#if>
     <#elseif .node["@currency-unit-field"]?has_content>
-        <#assign fieldValue = ec.l10n.formatCurrency(sri.getFieldValue(.node?parent?parent, ""), ec.resource.expression(.node["@currency-unit-field"], ""), 2)>
+        <#assign fieldValue = ec.getL10n().formatCurrency(sri.getFieldValue(dispFieldNode, ""), ec.getResource().expression(.node["@currency-unit-field"], ""))>
     <#else>
-        <#assign fieldValue = sri.getFieldValueString(.node?parent?parent, "", .node["@format"]?if_exists)>
+        <#assign fieldValue = sri.getFieldValueString(.node)>
     </#if>
     <#t><@csvValue fieldValue/>
 </#macro>
@@ -238,10 +234,10 @@ on the same screen to increase reusability of those screens -->
 </#macro>
 
 <#macro "drop-down">
-    <#assign options = {"":""}/><#assign options = sri.getFieldOptions(.node)>
-    <#assign currentValue = sri.getFieldValueString(.node?parent?parent, "", null)/>
-    <#if !currentValue?has_content><#assign currentValue = .node["@no-current-selected-key"]?if_exists/></#if>
-    <#t><#if currentValue?has_content>${options.get(currentValue)?default(currentValue)}</#if>
+    <#assign options = sri.getFieldOptions(.node)>
+    <#assign currentValue = sri.getFieldValueString(.node)/>
+    <#if !currentValue?has_content><#assign currentValue = .node["@no-current-selected-key"]!""/></#if>
+    <#t><@csvValue (options.get(currentValue))!(currentValue)/>
 </#macro>
 
 <#macro "file"></#macro>
@@ -251,9 +247,9 @@ on the same screen to increase reusability of those screens -->
 
 <#macro "radio">
     <#assign options = {"":""}/><#assign options = sri.getFieldOptions(.node)>
-    <#assign currentValue = sri.getFieldValueString(.node?parent?parent, "", null)/>
-    <#if !currentValue?has_content><#assign currentValue = .node["@no-current-selected-key"]?if_exists/></#if>
-    <#t><#if currentValue?has_content>${options.get(currentValue)?default(currentValue)}</#if>
+    <#assign currentValue = sri.getFieldValueString(.node)/>
+    <#if !currentValue?has_content><#assign currentValue = .node["@no-current-selected-key"]!""/></#if>
+    <#t><@csvValue (options.get(currentValue))!(currentValue)/>
 </#macro>
 
 <#macro "range-find"></#macro>
@@ -265,16 +261,16 @@ on the same screen to increase reusability of those screens -->
 </#macro>
 
 <#macro "text-area">
-    <#assign fieldValue = sri.getFieldValue(.node?parent?parent, .node["@default-value"]!"")>
+    <#assign fieldValue = sri.getFieldValueString(.node)>
     <#t><@csvValue fieldValue/>
 </#macro>
 
 <#macro "text-line">
-    <#assign fieldValue = sri.getFieldValue(.node?parent?parent, .node["@default-value"]!"")>
+    <#assign fieldValue = sri.getFieldValueString(.node)>
     <#t><@csvValue fieldValue/>
 </#macro>
 
 <#macro "text-find">
-    <#assign fieldValue = sri.getFieldValue(.node?parent?parent, .node["@default-value"]!"")>
+    <#assign fieldValue = sri.getFieldValueString(.node)>
     <#t><@csvValue fieldValue/>
 </#macro>

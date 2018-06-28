@@ -13,29 +13,37 @@ along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-1.6.xsd">
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-2.1.xsd">
 
     <parameter name="cacheName" required="true"/>
 
     <transition name="clearCacheElement">
         <actions>
-            <script>
-                org.moqui.context.Cache theCache = ec.cache.getCache(cacheName)
-                if (theCache.containsKey(key)) {
-                    Object cacheValue = theCache.remove(key)
-                    ec.message.addMessage("Cleared [${key}] from cache [${cacheName}] had value [${cacheValue}]")
-                } else {
-                    ec.message.addError("No entry with key [${key}] in cache [${cacheName}]")
+            <script><![CDATA[
+                ec.logger.info("Clearing cache entry with key ${key} from cache ${cacheName}")
+                javax.cache.Cache theCache = ec.cache.getCache(cacheName)
+                Iterator iter = theCache.iterator()
+                while (iter.hasNext()) {
+                    javax.cache.Cache.Entry entry = iter.next()
+                    if (key == (entry.key as String)) {
+                        cacheValue = theCache.getAndRemove(key)
+                        ec.message.addMessage(ec.resource.expand('Cleared ${key} from cache [${cacheName}] had value [${cacheValue}]',''))
+                        return
+                    }
                 }
-            </script>
+                ec.message.addError(ec.resource.expand('No entry with key [${key}] in cache [${cacheName}]',''))
+            ]]></script>
         </actions>
         <default-response url="."/>
     </transition>
 
     <actions>
+        <if condition="!ec.cache.cacheExists(cacheName)">
+            <return error="true" message="Cache with name ${cacheName} not found"/></if>
+
         <set field="pageSize" from="pageSize ?: 40"/>
-        <set field="cacheElementList" from="ec.cache.getCache(cacheName)?.makeElementInfoList(orderByField?:'+key')"/>
-        <script>StupidUtilities.paginateList("cacheElementList", null, context)</script>
+        <set field="cacheElementList" from="ec.cache.makeElementInfoList(cacheName, orderByField?:'+key')"/>
+        <script>paginateList("cacheElementList", null, context)</script>
     </actions>
     <widgets>
         <label text="Elements for Cache [${cacheName}]" type="h3"/>
@@ -62,10 +70,6 @@ along with this software (see the LICENSE.md file). If not, see
             </field>
             <field name="lastAccessTime">
                 <header-field title="Last Access" show-order-by="true"/>
-                <default-field><display also-hidden="false"/></default-field>
-            </field>
-            <field name="version">
-                <header-field show-order-by="true"/>
                 <default-field><display also-hidden="false"/></default-field>
             </field>
             <field name="clear">

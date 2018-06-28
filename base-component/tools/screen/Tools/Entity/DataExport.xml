@@ -12,11 +12,10 @@ You should have received a copy of the CC0 Public Domain Dedication
 along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
-<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-1.6.xsd"
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-2.1.xsd"
         default-menu-title="Export">
 
-    <transition name="EntityExport" begin-transaction="false">
+    <transition name="EntityExport" begin-transaction="false" read-only="true">
         <actions>
             <script><![CDATA[
                 import org.moqui.entity.EntityDataWriter
@@ -26,32 +25,30 @@ along with this software (see the LICENSE.md file). If not, see
 
                 // handle entityNames
                 if (!context.entityNames) {
-                    ec.message.addError("No entity names specified, not exporting anything.")
+                    ec.message.addError(ec.l10n.localize("No entity names specified, not exporting anything."))
                     return
                 }
 
-                // check for entities in the tenantcommon group, not allowed in Tools app for multi-tenant security
                 if (entityNames instanceof List) {
                     for (String entityName in entityNames) {
                         def entDef = ec.entity.getEntityDefinition(entityName)
-                        if (entDef == null || entDef.getEntityGroupName() == 'tenantcommon')
-                            ec.message.addError("Could not find entity with name ${entityName}")
+                        if (entDef == null) ec.message.addError(ec.resource.expand('Could not find entity with name ${entityName}',''))
                     }
                     edw.entityNames(entityNames)
                 } else {
                     def entDef = ec.entity.getEntityDefinition(entityNames)
-                    if (entDef == null || entDef.getEntityGroupName() == 'tenantcommon')
-                        ec.message.addError("Could not find entity with name ${entityNames}")
-                    edw.entityName(entityNames)
+                    if (entDef == null) ec.message.addError(ec.resource.expand('Could not find entity with name ${entityNames}',''))
+                    edw.entityName(entityNames as String)
                 }
 
                 if (ec.message.hasError()) return
 
                 if (dependentLevels) edw.dependentLevels(dependentLevels as int)
+                if (masterName) edw.master(masterName)
                 if (fromDate) edw.fromDate(ec.l10n.parseTimestamp(fromDate, null))
                 if (thruDate) edw.thruDate(ec.l10n.parseTimestamp(thruDate, null))
-                if (filterMap) edw.filterMap(ec.resource.expression(filterMap, null))
-                if (orderBy) edw.orderBy([orderBy])
+                if (filterMap) edw.filterMap((Map) ec.resource.expression(filterMap, null))
+                if (orderBy) edw.orderBy([(String) orderBy])
                 edw.fileType(fileType == 'JSON' ? EntityDataWriter.JSON : EntityDataWriter.XML)
 
                 noResponse = false
@@ -70,18 +67,20 @@ along with this software (see the LICENSE.md file). If not, see
                 }
             ]]></script>
         </actions>
-        <conditional-response type="none"><condition><expression>noResponse</expression></condition></conditional-response>
-        <default-response url="."/>
+        <conditional-response url="."><condition><expression>!noResponse</expression></condition></conditional-response>
+        <default-response type="none"/>
     </transition>
 
     <widgets>
         <form-single name="ExportData" transition="EntityExport">
             <field name="entityNames">
                 <default-field><drop-down allow-multiple="true" size="80">
-                    <list-options list="ec.entity.getAllEntitiesInfo('fullEntityName', null, false, true, true)" key="${fullEntityName}"/>
+                    <list-options list="ec.entity.getAllEntitiesInfo('fullEntityName', null, false, true)" key="${fullEntityName}"/>
                 </drop-down></default-field>
             </field>
             <field name="dependentLevels"><default-field><text-line size="2" default-value="0"/></default-field></field>
+            <field name="masterName"><default-field tooltip="Use master definition for each entity that has one with this name; try 'default'">
+                <text-line size="15"/></default-field></field>
 
             <field name="fromDate"><default-field><date-time/></default-field></field>
             <field name="thruDate"><default-field><date-time/></default-field></field>

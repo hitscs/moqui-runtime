@@ -13,7 +13,7 @@ along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-1.6.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-2.1.xsd"
         default-menu-title="Entity List" default-menu-index="1">
 
     <transition name="find"><default-response url="../EntityDataFind"/></transition>
@@ -23,13 +23,27 @@ along with this software (see the LICENSE.md file). If not, see
         <default-response url="."/>
     </transition>
 
+    <transition name="getLiquibaseInitXml" read-only="true">
+        <actions><script><![CDATA[
+            def lbRootNode = ec.entity.getEntityDbMeta().liquibaseInitChangelog(filterRegexp)
+            ec.web.sendTextResponse(lbRootNode.toString(), "text/xml", "LiquibaseInit-${new java.sql.Date(System.currentTimeMillis()).toString()}.xml")
+        ]]></script></actions>
+        <default-response type="none"/>
+    </transition>
+
     <actions>
         <set field="pageSize" from="pageSize ?: 60"/>
-        <set field="entityList" from="ec.entity.getAllEntitiesInfo(orderByField?:'fullEntityName', filterRegexp, false, false, false)"/>
-        <script>StupidUtilities.paginateList("entityList", null, context)</script>
+        <set field="entityList" from="ec.entity.getAllEntitiesInfo(orderByField?:'fullEntityName', filterRegexp, false, false)"/>
+        <script>paginateList("entityList", null, context)</script>
     </actions>
     <widgets>
         <link url="checkTables" text="Check/Update All Tables"/>
+        <container-dialog id="LiquibaseInitDialog" button-text="Liquibase Init XML">
+            <form-single name="LiquibaseInit" transition="getLiquibaseInitXml">
+                <field name="filterRegexp"><default-field><text-line size="40"/></default-field></field>
+                <field name="submitButton"><default-field title="Download"><submit/></default-field></field>
+            </form-single>
+        </container-dialog>
 
         <form-single name="FilterForm" transition=".">
             <field name="filterRegexp"><default-field><text-line size="30"/></default-field></field>
@@ -46,14 +60,14 @@ along with this software (see the LICENSE.md file). If not, see
                 <default-field><display also-hidden="false"/></default-field>
             </field>
             <field name="isView">
-                <header-field title="View" show-order-by="true"/>
+                <header-field title="View##DataBase" show-order-by="true"/>
                 <default-field><display also-hidden="false"/></default-field>
             </field>
-            <field name="Find"><default-field>
-                <link url="find" text="Find" link-type="anchor"/>
+            <field name="find"><default-field>
+                <link url="find" text="Find" link-type="anchor" parameter-map="[selectedEntity:fullEntityName]"/>
             </default-field></field>
-            <field name="Detail"><default-field>
-                <link url="detail" text="Detail" link-type="anchor" parameter-map="[entityName:fullEntityName]"/>
+            <field name="detail"><default-field>
+                <link url="detail" text="Detail" link-type="anchor" parameter-map="[selectedEntity:fullEntityName]"/>
             </default-field></field>
         </form-list>
     </widgets>

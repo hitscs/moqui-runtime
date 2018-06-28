@@ -12,54 +12,55 @@ You should have received a copy of the CC0 Public Domain Dedication
 along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
-<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-1.6.xsd"
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-2.1.xsd"
         require-authentication="false">
     <!-- NOTE: require-authentication=false is required to allow sub-screens to decide, and because the Login screen is below this. -->
     <always-actions>
-        <!-- TODO: implement way to only load base JS and CSS files and load others as needed on different screens! -->
-        <set field="html_scripts" from="new LinkedHashSet(['/assets/lib/jquery/jquery.min.js',
-            '/assets/lib/jquery/jquery-migrate-1.2.1.min.js',
-            '/assets/lib/jquery-ui/jquery-ui.min.js', '/assets/lib/bootstrap/js/bootstrap.min.js',
-            '/assets/lib/form/jquery.form.js'])"/>
-        <set field="footer_scripts" from="new LinkedHashSet([
-            '/assets/lib/datetimepicker/js/bootstrap-datetimepicker.min.js',
-            '/assets/lib/jquery-validation-1.11.1/dist/jquery.validate.min.js',
-            '/assets/lib/chosen/chosen.jquery.min.js',
-            '/assets/lib/autosize/jquery.autosize.min.js',
-            '/assets/lib/jasny/js/jasny-bootstrap.min.js',
-            '/js/jquery-jeditable-1.7.1.min.js',
-            '/js/jstree-3.0.3/jstree.min.js',
-            '/assets/js/main.min.js','/assets/js/minHeight.js'])"/>
-
-        <!-- out until used in DefaultScreenMacros.html.ftl:
-            '/assets/lib/inputlimiter/jquery.inputlimiter.1.3.1.min.js',
-            '/assets/lib/daterangepicker/daterangepicker.js',
-            '/assets/lib/daterangepicker/moment.min.js',
-            '/assets/lib/jquery.dualListbox-1.3/jquery.dualListBox-1.3.min.js',
-
-            '/assets/lib/inputlimiter/jquery.inputlimiter.1.0.css',
-            '/assets/lib/chosen/chosen.min.css',
-            '/assets/lib/daterangepicker/daterangepicker-bs3.css',
-        -->
+        <!-- No JS or CSS files referenced here, just setup lists for subscreens to add to in pre-actions -->
+        <set field="html_scripts" from="new LinkedHashSet()"/>
+        <set field="footer_scripts" from="new LinkedHashSet()"/>
 
         <!-- See WebrootThemeData.xml for CSS references -->
         <set field="html_stylesheets" from="new LinkedHashSet()"/>
     </always-actions>
-    <subscreens default-item="apps">
-        <!-- if the client is an iPad, default to the ipad subscreens item instead of apps, but allow either to be used explicitly -->
-        <!-- <conditional-default condition="(ec.web.request.getHeader('User-Agent')?:'').matches('.*iPad.*')" item="ipad"/> -->
+    <transition name="status">
+        <actions><script>ec.web.sendJsonResponse(ec.factory.getStatusMap())</script></actions>
+        <default-response type="none"/>
+    </transition>
+    <transition name="menuData" read-only="true" begin-transaction="false">
+        <actions><script><![CDATA[
+            List menuDataList = sri.getMenuData(sri.screenUrlInfo.extraPathNameList)
+            if (menuDataList != null) ec.web.sendJsonResponse(menuDataList)
+        ]]></script></actions>
+        <default-response type="none"/>
+    </transition>
+    <transition name="email"><path-parameter name="emailMessageId"/><actions><script>ec.web.viewEmailMessage()</script></actions>
+        <default-response type="none"/></transition>
 
-        <!-- refer to the UNDECORATED (or self-decorating) app roots here -->
+    <transition name="robots.txt">
+        <!-- TODO: get fancier with this, crawl screen tree looking for screens that don't require authc, maybe some sort of setting to allow robots or not -->
+        <!-- TODO: also generate sitemap XML with paths we want crawled, based on ? -->
+        <actions><script><![CDATA[
+            List disallowList = ['apps', 'vapps', 'rest', 'rpc', 'status', 'menuData']
+            def outWriter = new StringWriter()
+            outWriter.append("user-agent: *\n")
+            for (disPath in disallowList) outWriter.append("disallow: /${disPath}\n")
+            ec.web.sendTextResponse(outWriter.toString())
+        ]]></script>
+        </actions>
+        <default-response type="none"/>
+    </transition>
+
+    <subscreens default-item="vapps">
+        <subscreens-item name="toolstatic" location="component://tools/screen/toolstatic.xml" menu-include="false"/>
+        <!-- add UNDECORATED (or self-decorating) app roots here -->
     </subscreens>
     <widgets>
         <render-mode>
             <text type="html" location="component://webroot/screen/includes/Header.html.ftl" no-boundary-comment="true"/>
             <text type="xsl-fo" location="component://webroot/screen/includes/Header.xsl-fo.ftl" no-boundary-comment="true"/>
         </render-mode>
-
-        <subscreens-active/>
-
+        <render-mode><text template="true">${sri.renderSubscreen()}</text></render-mode>
         <render-mode>
             <text type="html" location="component://webroot/screen/includes/Footer.html.ftl"/>
             <text type="xsl-fo"><![CDATA[${sri.getAfterScreenWriterText()}</fo:flow></fo:page-sequence></fo:root>]]></text>

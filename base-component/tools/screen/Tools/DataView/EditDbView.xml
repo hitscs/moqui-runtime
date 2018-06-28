@@ -12,23 +12,19 @@ You should have received a copy of the CC0 Public Domain Dedication
 along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
-<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-1.6.xsd"
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-2.1.xsd"
         default-menu-title="Edit Data View Entity" default-menu-index="1">
 
-    <parameter name="dbViewEntityName" required="true"/>
+    <parameter name="dbViewEntityName" required="true" from="dbViewEntityName ?: dbViewEntityName_0"/>
     <parameter name="dbViewEntityName_0"/>
 
     <transition name="view"><default-response url="../ViewDbView"/></transition>
-    <transition name="DbView.csv"><default-response url="../ViewDbView/DbView.csv"></default-response></transition>
-    <transition name="update">
-        <service-call name="update#moqui.entity.view.DbViewEntity"/>
-        <default-response url="."/>
-    </transition>
-    <transition name="setMasterEntity">
-        <service-call name="store#moqui.entity.view.DbViewEntityMember"/>
-        <default-response url="."/>
-    </transition>
+    <transition name="DbView.csv"><default-response url="../ViewDbView/DbView.csv"/></transition>
+    <transition name="update"><service-call name="update#moqui.entity.view.DbViewEntity"/>
+        <default-response url="."/></transition>
+    <transition name="setMasterEntity"><service-call name="store#moqui.entity.view.DbViewEntityMember"/>
+        <default-response url="."/></transition>
+
     <transition name="setMasterFields">
         <actions>
             <set field="dbViewEntityName" from="dbViewEntityName_0"/>
@@ -50,6 +46,7 @@ along with this software (see the LICENSE.md file). If not, see
             <!-- add moqui.entity.view.DbViewEntityAlias record, and moqui.entity.view.DbViewEntityMember/ViewLink if needed -->
             <script>
                 import org.moqui.impl.entity.EntityDefinition
+                import org.moqui.impl.entity.EntityJavaUtil
                 // make sure reverse-one many relationships exist
                 ec.entity.createAllAutoReverseManyRelationships()
 
@@ -71,7 +68,7 @@ along with this software (see the LICENSE.md file). If not, see
                     String fieldName
 
                     String relationshipName = field.substring(0, field.lastIndexOf('.'))
-                    EntityDefinition.RelationshipInfo relInfo = masterEd.getRelationshipInfo(relationshipName)
+                    EntityJavaUtil.RelationshipInfo relInfo = masterEd.getRelationshipInfo(relationshipName)
                     if (relInfo != null) {
                         entityName = relInfo.relatedEntityName
                         fieldName = field.substring(field.lastIndexOf('.') + 1)
@@ -79,11 +76,11 @@ along with this software (see the LICENSE.md file). If not, see
                         entityName = masterEntityName
                         fieldName = field.substring(field.lastIndexOf('.') + 1)
                     } else {
-                        ec.message.addError("No relationship definition found for name ${relationshipName}")
+                        ec.message.addError(ec.resource.expand('No relationship definition found for name ${relationshipName}',''))
                         continue
                     }
 
-                    ec.logger.log(ec.logger.WARN_INT, "relationshipName: ${relationshipName}, entityName: ${entityName}, fieldName: ${fieldName}", null)
+                    // ec.logger.log(ec.logger.WARN_INT, "relationshipName: ${relationshipName}, entityName: ${entityName}, fieldName: ${fieldName}", null)
                     def memberValue = (relationshipName == masterDbViewEntityMember.entityName) ?
                             masterDbViewEntityMember : members.get(entityName)
                     if (!memberValue) {
@@ -130,9 +127,6 @@ along with this software (see the LICENSE.md file). If not, see
         <default-response url="."/>
     </transition>
 
-    <pre-actions>
-        <set field="dbViewEntityName" from="dbViewEntityName ?: dbViewEntityName_0"/>
-    </pre-actions>
     <widgets>
         <container>
             <link url="view" text="View ${dbViewEntityName}"/>
@@ -155,7 +149,7 @@ along with this software (see the LICENSE.md file). If not, see
                     <field-map field-name="dbViewEntityName"/>
                     <field-map field-name="entityAlias" value="MASTER"/>
                 </entity-find-one>
-                <set field="masterEntityList" from="ec.entity.getAllEntitiesInfo('entityName', null, false, false, true)"/>
+                <set field="masterEntityList" from="ec.entity.getAllEntitiesInfo('entityName', null, false, true)"/>
                 <set field="masterFieldList"
                     from="ec.entity.getAllEntityRelatedFields(fieldValues?.entityName, orderByField?:'+entityName', dbViewEntityName)"/>
             </actions>

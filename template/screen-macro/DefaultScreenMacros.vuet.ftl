@@ -340,7 +340,7 @@ ${sri.renderIncludeScreen(.node["@location"], .node["@share-scope"]!)}
             <#assign loadUrlInfo = sri.makeUrlByType(loadNode["@transition"], "transition", loadNode, "true")>
             <#assign loadUrlParms = loadUrlInfo.getParameterMap()>
         </#if>
-        <m-editable id="<@nodeId .node/>" label-type="${.node["@type"]!"span"}" label-value="${labelValue}"<#rt>
+        <m-editable id="<@nodeId .node/>" label-type="${.node["@type"]!"span"}" label-value="${labelValue?xml}"<#rt>
             <#t> url="${urlInstance.url}" :url-parameters="{<#list urlParms.keySet() as parameterKey>'${parameterKey}':'${urlParms[parameterKey]}',</#list>}"
             <#t> parameter-name="${.node["@parameter-name"]!"value"}" widget-type="${.node["@widget-type"]!"textarea"}"
             <#t> indicator="${ec.getL10n().localize("Saving")}" tooltip="${ec.getL10n().localize("Click to edit")}"
@@ -527,7 +527,7 @@ ${sri.renderIncludeScreen(.node["@location"], .node["@share-scope"]!)}
         </#if>
         <#if fieldSubNode["submit"]?has_content>
         <div class="form-group">
-            <div class="${labelClass}">&nbsp;</div>
+            <div class="${labelClass} hidden-xs">&nbsp;</div>
             <div class="${widgetClass}<#if containerStyle?has_content> ${containerStyle}</#if>">
         <#elseif !(inFieldRow! && !curFieldTitle?has_content)>
         <div class="form-group">
@@ -727,10 +727,10 @@ ${sri.renderIncludeScreen(.node["@location"], .node["@share-scope"]!)}
         <#assign selectColumnsDialogId = formId + "_SelColsDialog">
         <#assign selectColumnsSortableId = formId + "_SelColsSortable">
         <#assign fieldsNotInColumns = formListInfo.getFieldsNotReferencedInFormListColumn()>
-        <container-dialog id="${selectColumnsDialogId}" title="${ec.getL10n().localize("Column Fields")}">
-            <p>Drag fields to the desired column or do not display</p>
+        <container-dialog id="${selectColumnsDialogId}" title="${ec.l10n.localize("Column Fields")}">
+            <p>${ec.getL10n().localize("Drag fields to the desired column or do not display")}</p>
             <ul id="${selectColumnsSortableId}">
-                <li id="hidden"><div>Do Not Display</div>
+                <li id="hidden"><div>${ec.l10n.localize("Do Not Display")}</div>
                     <#if fieldsNotInColumns?has_content>
                         <ul>
                             <#list fieldsNotInColumns as fieldNode>
@@ -741,7 +741,7 @@ ${sri.renderIncludeScreen(.node["@location"], .node["@share-scope"]!)}
                     </#if>
                 </li>
                 <#list allColInfoList as columnFieldList>
-                    <li id="column_${columnFieldList_index}"><div>Column ${columnFieldList_index + 1}</div><ul>
+                    <li id="column_${columnFieldList_index}"><div>${ec.l10n.localize("Column")} ${columnFieldList_index + 1}</div><ul>
                         <#list columnFieldList as fieldNode>
                             <#assign fieldSubNode = (fieldNode["header-field"][0])!(fieldNode["default-field"][0])!>
                             <li id="${fieldNode["@name"]}"><div><@fieldTitle fieldSubNode/></div></li>
